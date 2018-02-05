@@ -1,3 +1,7 @@
+###
+## Only conduct one time trainging/testing for a dataset
+###
+
 from __future__ import print_function
 import numpy as np
 import tensorflow as tf
@@ -30,7 +34,7 @@ y_train = labels[:320, :]
 y_test = labels[320:, :]
 
 ## hyper-parameters and settings
-L2 = True
+L2 = False
 droph1 = False
 learning_rate = 0.0001
 # learning_rate2 = 0.0001
@@ -155,19 +159,19 @@ with tf.Session() as sess:
         del y_tmp
 
         ## Display logs per epoch step
-        if epoch % display_step == 0:
-            loss_rec[epoch] = avg_cost
-            # print ("Epoch:", '%d' % (epoch+1), "cost=", "{:.9f}".format(avg_cost))
-            acc, y_s = sess.run([accuracy, y_score], feed_dict={x: x_train, y: y_train, keep_prob: 1})
-            auc = metrics.roc_auc_score(y_train, y_s)
-            training_eval[epoch] = [acc, auc]
-            print ("Epoch:", '%d' % (epoch+1), "cost =", "{:.9f}".format(avg_cost),
-                    "Training accuracy:", round(acc,3), " Training auc:", round(auc,3))
+        # if epoch % display_step == 0:
+            # loss_rec[epoch] = avg_cost
+            # # print ("Epoch:", '%d' % (epoch+1), "cost=", "{:.9f}".format(avg_cost))
+            # acc, y_s = sess.run([accuracy, y_score], feed_dict={x: x_train, y: y_train, keep_prob: 1})
+            # auc = metrics.roc_auc_score(y_train, y_s)
+            # training_eval[epoch] = [acc, auc]
+            # print ("Epoch:", '%d' % (epoch+1), "cost =", "{:.9f}".format(avg_cost),
+                    # "Training accuracy:", round(acc,3), " Training auc:", round(auc,3))
 
     ## Testing cycle
     acc, y_s = sess.run([accuracy, y_score], feed_dict={x: x_test, y: y_test, keep_prob: 1})
     auc = metrics.roc_auc_score(y_test, y_s)
-    print("*****=====", "Testing accuracy: ", acc, " Testing auc: ", auc, "=====*****")
+    # print("*****=====", "Testing accuracy: ", acc, " Testing auc: ", auc, "=====*****")
     print(auc)
 
 

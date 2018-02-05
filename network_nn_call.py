@@ -1,3 +1,7 @@
+###
+## Only conduct one time trainging/testing for a dataset
+###
+
 from __future__ import print_function
 import numpy as np
 import tensorflow as tf
@@ -6,14 +10,15 @@ from sklearn import metrics
 from random import seed
 import time
 
+## timer
 # start_time = time.time()
-tf.reset_default_graph()
+# print("Total time used: %s minutes " % ((time.time() - start_time)/60) )
 
-## load and prepare the data
+tf.reset_default_graph()
+partition = np.loadtxt("C:/Users/yunchuan/Dropbox/Research_Yu/kingdom/partition_sim.txt", dtype=int, delimiter=None)
 expression = np.loadtxt("C:/Users/yunchuan/Dropbox/Research_Yu/kingdom/data_expression_sim.csv", dtype=float, delimiter=",", skiprows=1)
-# expression = np.loadtxt("../data_expression_sim.csv", dtype=float, delimiter=",", skiprows=1)
-label_vec = np.array(expression[:,-1], dtype=int)
 expression = np.array(expression[:,:-1])
+label_vec = np.array(expression[:,-1], dtype=int)
 labels = []
 for l in label_vec:
     if l == 1:
@@ -21,51 +26,37 @@ for l in label_vec:
     else:
         labels.append([1,0])
 labels = np.array(labels,dtype=int)
-partition = np.loadtxt("C:/Users/yunchuan/Dropbox/Research_Yu/kingdom/partition_sim.txt", dtype=int, delimiter=None)
-# partition = np.loadtxt("../partition_sim.txt", dtype=int, delimiter=None)
 
+expression, labels = shuffle(expression, labels) ## different here from rfnn.py
+x_train = expression[:320, :]
+x_test = expression[320:, :]
+y_train = labels[:320, :]
+y_test = labels[320:, :]
 
 ## hyper-parameters and settings
-L2 = True
+L2 = False
 droph1 = False
 learning_rate = 0.0001
 # learning_rate2 = 0.0001
-training_epochs = 150
-trials = 1
-test_prop = 0.2
+training_epochs = 120
+# trials = 1
+# test_prop = 0.2
 batch_size = 8
 display_step = 1
 
-n_hidden_1 = np.shape(partition)[1]
+n_hidden_1 = np.shape(partition)[0]
 n_hidden_2 = 64
 n_hidden_3 = 16
+# n_hidden_4 = 16
 n_classes = 2
-
-## prepare for training and testing
 n_features = np.shape(expression)[1]
-n_instances = np.shape(expression)[0]
-# print ("Number of instances: ", n_instances)
-# print ("Number of features: ", n_features)
-
-def train_test_split(expression, labels):
-    expression, labels = shuffle(expression, labels)
-    expression_test = expression[:int(n_instances*test_prop),:]
-    labels_test = labels[:int(n_instances*test_prop),:]
-    expression_train = expression[int(n_instances*test_prop):,:]
-    labels_train = labels[int(n_instances*test_prop):,:]
-    return expression_train, labels_train, expression_test, labels_test
 
 ## initiate training logs
-# loss_rec = np.zeros([training_epochs, 1])
-# training_eval = np.zeros([training_epochs, 2])
-# # testing_eval = np.zeros([int(training_epochs/10), 2])
+loss_rec = np.zeros([training_epochs, 1])
+training_eval = np.zeros([training_epochs, 2])
+# testing_eval = np.zeros([int(training_epochs/10), 2])
 # avg_test_acc = 0.
 # avg_test_auc = 0.
-
-# def get_batch(x, y, batch_size):
-#     batch_x, batch_y = shuffle(x, y, n_samples=batch_size)
-#     return batch_x, batch_y
-
 
 def multilayer_perceptron(x, weights, biases, keep_prob):
 
@@ -87,6 +78,10 @@ def multilayer_perceptron(x, weights, biases, keep_prob):
     layer_3 = tf.nn.relu(layer_3)
     layer_3 = tf.nn.dropout(layer_3, keep_prob=keep_prob)
 
+    # layer_4 = tf.add(tf.matmul(layer_3, weights['h4']), biases['b4'])
+    # layer_4 = tf.nn.relu(layer_4)
+    # layer_4 = tf.nn.dropout(layer_4, keep_prob=keep_prob)
+
     out_layer = tf.matmul(layer_3, weights['out']) + biases['out']
     return out_layer
 
@@ -101,21 +96,16 @@ weights = {
     'h1': tf.Variable(tf.truncated_normal(shape=[n_features, n_hidden_1], stddev=0.1)),
     'h2': tf.Variable(tf.truncated_normal(shape=[n_hidden_1, n_hidden_2], stddev=0.1)),
     'h3': tf.Variable(tf.truncated_normal(shape=[n_hidden_2, n_hidden_3], stddev=0.1)),
+    # 'h4': tf.Variable(tf.truncated_normal(shape=[n_hidden_3, n_hidden_4], stddev=0.1)),
     'out': tf.Variable(tf.truncated_normal(shape=[n_hidden_3, n_classes], stddev=0.1))
 
 }
-
-# biases = {
-#     'b1': tf.Variable(tf.random_normal([n_hidden_1])),
-#     'b2': tf.Variable(tf.random_normal([n_hidden_2])),
-#     'b3': tf.Variable(tf.random_normal([n_hidden_3])),
-#     'out': tf.Variable(tf.random_normal([n_classes]))
-# }
 
 biases = {
     'b1': tf.Variable(tf.zeros([n_hidden_1])),
     'b2': tf.Variable(tf.zeros([n_hidden_2])),
     'b3': tf.Variable(tf.zeros([n_hidden_3])),
+    # 'b4': tf.Variable(tf.zeros([n_hidden_4])),
     'out': tf.Variable(tf.zeros([n_classes]))
 }
 
@@ -135,76 +125,62 @@ correct_prediction = tf.equal(tf.argmax(pred, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
 y_score = tf.nn.softmax(logits=pred)
 
-# Launch the graph
-
 with tf.Session() as sess:
-    for t in range(int(trials)):
-        seed(t)
-        expression_train, labels_train, expression_test, labels_test = train_test_split(expression, labels)
-        sess.run(tf.global_variables_initializer())
-        total_batch = int(np.shape(expression_train)[0] / batch_size)
 
-        ## for monitoring weights
-        # w1_pre = sess.run(weights['h1'][:10, :10], feed_dict={x: expression, y: labels, keep_prob: 1})
+    sess.run(tf.global_variables_initializer())
+    total_batch = int(np.shape(x_train)[0] / batch_size)
 
-        # Training cycle
-        for epoch in range(training_epochs):
-            # avg_cost = 0.
-            expression_tmp, labels_tmp = shuffle(expression_train, labels_train)
-            # Loop over all batches
-            for i in range(total_batch-1):
-                batch_x, batch_y = expression_tmp[i*batch_size:i*batch_size+batch_size], \
-                                    labels_tmp[i*batch_size:i*batch_size+batch_size]
+    ## for monitoring weights
+    # w1_pre = sess.run(weights['h1'][:10, :10], feed_dict={x: expression, y: labels, keep_prob: 1})
 
-                # if epoch <= 69:
-                _, c= sess.run([optimizer, cost], feed_dict={x: batch_x, y: batch_y,
-                                                                keep_prob: 0.9,
-                                                                lr: learning_rate
-                                                                })
-                # else:
-                #     _, c= sess.run([optimizer, cost], feed_dict={x: batch_x, y: batch_y,
-                #                                                 keep_prob: 0.9,
-                #                                                 lr: learning_rate2
-                #                                                 })
-                # Compute average loss
-                # avg_cost += c / total_batch
+    ## Training cycle
+    for epoch in range(training_epochs):
+        avg_cost = 0.
+        x_tmp, y_tmp = shuffle(x_train, y_train)
+        # Loop over all batches
+        for i in range(total_batch-1):
+            batch_x, batch_y = x_tmp[i*batch_size:i*batch_size+batch_size], \
+                                y_tmp[i*batch_size:i*batch_size+batch_size]
 
-            del expression_tmp
-            del labels_tmp
+            # if epoch <= 69:
+            _, c= sess.run([optimizer, cost], feed_dict={x: batch_x, y: batch_y,
+                                                        keep_prob: 0.9,
+                                                        lr: learning_rate
+                                                        })
+            # else:
+            #     _, c= sess.run([optimizer, cost], feed_dict={x: batch_x, y: batch_y,
+            #                                                 keep_prob: 0.9,
+            #                                                 lr: learning_rate2
+            #                                                 })
+            # Compute average loss
+            avg_cost += c / total_batch
 
-            # Display logs per epoch step
-            # if epoch % display_step == 0:
-            #     loss_rec[epoch] = avg_cost
-            #     # print ("Epoch:", '%d' % (epoch+1), "cost=", "{:.9f}".format(avg_cost))
-            #     acc, y_s = sess.run([accuracy, y_score], feed_dict={x: expression_train, y: labels_train, keep_prob: 1})
-            #     auc = metrics.roc_auc_score(labels_train, y_s)
-            #     training_eval[epoch] = [acc, auc]
-            #     print ("Epoch:", '%d' % (epoch+1), "cost =", "{:.9f}".format(avg_cost),
-            #            "Training accuracy:", round(acc,3), " Training auc:", round(auc,3))
-            #     # print ("Training accuracy:", acc, " Training auc:", auc)
-            #     # w1 = sess.run(weights['h1'][:10, :10], feed_dict={x: expression, y: labels, keep_prob: 1})
-            #     # print(w1 - w1_pre)
-            #     # w1_pre = w1
+        del x_tmp
+        del y_tmp
 
-        ## Testing cycle
-        acc, y_s = sess.run([accuracy, y_score], feed_dict={x: expression_test, y: labels_test, keep_prob: 1})
-        auc = metrics.roc_auc_score(labels_test, y_s)
-        # print("*****=====", t+1, "Testing accuracy: ", acc, " Testing auc: ", auc, "=====*****")
-        print(auc)
-        # avg_test_acc += acc / trials
-        # avg_test_auc += auc / trials
+        ## Display logs per epoch step
+        # if epoch % display_step == 0:
+            # loss_rec[epoch] = avg_cost
+            # # print ("Epoch:", '%d' % (epoch+1), "cost=", "{:.9f}".format(avg_cost))
+            # acc, y_s = sess.run([accuracy, y_score], feed_dict={x: x_train, y: y_train, keep_prob: 1})
+            # auc = metrics.roc_auc_score(y_train, y_s)
+            # training_eval[epoch] = [acc, auc]
+            # print ("Epoch:", '%d' % (epoch+1), "cost =", "{:.9f}".format(avg_cost),
+                    # "Training accuracy:", round(acc,3), " Training auc:", round(auc,3))
+
+    ## Testing cycle
+    acc, y_s = sess.run([accuracy, y_score], feed_dict={x: x_test, y: y_test, keep_prob: 1})
+    auc = metrics.roc_auc_score(y_test, y_s)
+    # print("*****=====", "Testing accuracy: ", acc, " Testing auc: ", auc, "=====*****")
+    print(auc)
+
+
+
+
+    # avg_test_acc += acc / trials
+    # avg_test_auc += auc / trials
 
     # print ("***** ============================== *****")
     # print ("Average Testing Accuracy: ", round(avg_test_acc,3))
     # print ("Average Testing AUC: ", round(avg_test_auc,3))
     # print ("***** ============================== *****")
-
-# np.savetxt(str(n_instances) + "s_" + str(n_features) + "g_"
-#            + str(n_hidden_1) + "h1_" + str(n_hidden_2) + "h2_" + str(n_hidden_3) + "h3_loss.csv",
-#            loss_rec, delimiter=",")
-# np.savetxt(str(n_instances) + "s_" + str(n_features) + "g_"
-#            + str(n_hidden_1) + "h1_" + str(n_hidden_2) + "h2_" + str(n_hidden_3) + "h3_train.csv",
-#            training_eval, delimiter=",")
-
-
-# print("Total time used: %s minutes " % ((time.time() - start_time)/60) )
