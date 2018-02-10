@@ -17,8 +17,8 @@ import time
 tf.reset_default_graph()
 partition = np.loadtxt("C:/Users/yunchuan/Dropbox/Research_Yu/kingdom/partition_sim.txt", dtype=int, delimiter=None)
 expression = np.loadtxt("C:/Users/yunchuan/Dropbox/Research_Yu/kingdom/data_expression_sim.csv", dtype=float, delimiter=",", skiprows=1)
-expression = np.array(expression[:,:-1])
 label_vec = np.array(expression[:,-1], dtype=int)
+expression = np.array(expression[:,:-1])
 labels = []
 for l in label_vec:
     if l == 1:
