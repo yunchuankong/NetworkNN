@@ -1,9 +1,10 @@
 
 # setwd("C:\\Users\\kyccw\\Dropbox\\Research_Yu\\hurricane")
 setwd("C:\\Users\\yunchuan\\Dropbox\\Research_Yu\\jungle")
-library(igraph)
-library(mvtnorm)
-library(Matrix)
+# setwd("C:/Users/yunchuan/Documents/hurricane_artificial_data")
+# library(igraph)
+# library(mvtnorm)
+# library(Matrix)
 # seed = 1
 
 generate_data <- function(nums){
@@ -62,63 +63,81 @@ generate_data <- function(nums){
   write.table(partition, "partition_sim.txt", row.names=F, col.names=F)
 }
 
-run_DFN <- function(){
+run_DFN <- function(file){
   command = "python"
   path2script="C:/Users/yunchuan/Dropbox/Research_Yu/jungle/nn_call.py"
-  allArgs = path2script
+  allArgs = c(path2script, file)
   output = system2(command, args=allArgs, stdout=TRUE)
   return(as.numeric(output)[1]) 
 }
 
-run_GEDFN <- function(){
+run_GEDFN <- function(file){
   command = "python"
   path2script="C:/Users/yunchuan/Dropbox/Research_Yu/jungle/network_nn_call.py"
-  allArgs = path2script
+  allArgs = c(path2script, file)
   output = system2(command, args=allArgs, stdout=TRUE)
   # print(output)
   return(as.numeric(output)[1]) 
 }
 
-run_NGF <- function(){
+run_NGF <- function(file){
   command = "python"
-  path2script="C:/Users/yunchuan/Dropbox/Research_Yu/jungle/network_forest_call.py"
-  allArgs = path2script
+  path2script="C:/Users/yunchuan/Dropbox/Research_Yu/jungle/simulation_ngf/network_forest_call.py"
+  allArgs = c(path2script, file)
   output = system2(command, args=allArgs, stdout=TRUE)
   return(as.numeric(output[1])) 
 }
 
 nc_max <- 5
 times <- 10
-sing0 <- matrix(0, nrow=3, ncol=nc_max)
+# sing0 <- matrix(0, nrow=3, ncol=nc_max)
 # sing01 <- matrix(0, nrow=3, ncol=nc_max)
-# sing1 <- matrix(0, nrow=3, ncol=nc_max)
+sing1 <- matrix(0, nrow=3, ncol=nc_max)
 for (nc in 1:nc_max){
   dfn <- 0
   gedfn <- 0
   ngf <- 0
   for (i in 1:times){
-    nums <- c(2*nc, 0, 0, 0.1)
-    generate_data(nums)
-    temp_dfn <- run_DFN()
+    ## dataset
+    # nums <- c(2*nc, 1, 0, 0.1)
+    # generate_data(nums)
+	filename <- paste0("core", nc, "sing3","num", i+10)
+    path <- paste0("C:/Users/yunchuan/Documents/hurricane_artificial_data/", filename) ## sing1,2,3
+    file <- c(paste0(path,"_expression.csv"),
+             paste0(path,"_adjacency.txt"),
+             paste0(path,"_edgelist.csv"))
+    ## DFN
+    temp_dfn <- run_DFN(file)
     dfn <- temp_dfn/times + dfn
-    # temp_gedfn <- run_GEDFN()
-    # gedfn <- temp_gedfn/times + gedfn
-    # temp_gedfn <- 0 ## temp use, comment out it when activating GEDFN 
-    temp_ngf <- run_NGF()
+    
+    ## GEDFN
+    temp_gedfn <- run_GEDFN(file)
+    gedfn <- temp_gedfn/times + gedfn
+    # temp_gedfn <- 0 ## temp use, comment out it when activating GEDFN
+    
+    ## NGF
+    temp_ngf <- run_NGF(file)
     ngf <- temp_ngf/times + ngf
-    temp_ngf <- 0 ## temp use, comment out it when activating NGF
-    cat("Cores:", nc*2, "has been done", i, "times.\n")
-    cat(temp_dfn, temp_gedfn, temp_ngf, "\n")
+    # temp_ngf <- 0 ## temp use, comment out it when activating NGF
+    
+    ## log
+    cat(filename, "auc:", temp_dfn, temp_gedfn, temp_ngf, "\n")
   }
-  sing0[1, nc] <- dfn
-  sing0[2, nc] <- gedfn
-  sing0[3, nc] <- ngf
+  # sing0[1, nc] <- dfn
+  # sing0[2, nc] <- gedfn
+  # sing0[3, nc] <- ngf
+  # write.table(sing0, "results_sing0.txt", row.names=F, col.names=F)
+  
   # sing01[1, nc] <- dfn
   # sing01[2, nc] <- gedfn
   # sing01[3, nc] <- ngf
-  # sing1[1, nc] <- dfn
-  # sing1[2, nc] <- gedfn
-  # sing1[3, nc] <- ngf
-  # write.table(sing1, "results_temp.txt", row.names=F, col.names=F)
+  # write.table(sing01, "results_sing01.txt", row.names=F, col.names=F)
+  
+  sing1[1, nc] <- dfn
+  sing1[2, nc] <- gedfn
+  sing1[3, nc] <- ngf
+  write.table(sing1, "results_sing1.txt", row.names=F, col.names=F)
+  
 }
 
+# write.csv(round(rbind(sing0,sing01,sing1),3),file="results_11-20_300trees.csv",col.names=F,row.names=F)

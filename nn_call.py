@@ -9,6 +9,7 @@ from sklearn.utils import shuffle
 from sklearn import metrics
 from random import seed
 import time
+import sys
 
 ## timer
 # start_time = time.time()
@@ -16,7 +17,8 @@ import time
 
 tf.reset_default_graph()
 
-expression = np.loadtxt("C:/Users/yunchuan/Dropbox/Research_Yu/kingdom/data_expression_sim.csv", dtype=float, delimiter=",", skiprows=1)
+file = sys.argv[1]
+expression = np.loadtxt(file, dtype=float, delimiter=",", skiprows=1)
 label_vec = np.array(expression[:,-1], dtype=int)
 expression = np.array(expression[:,:-1])
 
@@ -28,7 +30,7 @@ for l in label_vec:
         labels.append([1,0])
 labels = np.array(labels,dtype=int)
 
-expression, labels = shuffle(expression, labels) ## different here from rfnn.py
+expression, labels = shuffle(expression, labels)
 x_train = expression[:320, :]
 x_test = expression[320:, :]
 y_train = labels[:320, :]
@@ -168,6 +170,9 @@ with tf.Session() as sess:
             # training_eval[epoch] = [acc, auc]
             # print ("Epoch:", '%d' % (epoch+1), "cost =", "{:.9f}".format(avg_cost),
                     # "Training accuracy:", round(acc,3), " Training auc:", round(auc,3))
+        if avg_cost <= 0.01:
+            # print("Early stopping.")
+            break
 
     ## Testing cycle
     acc, y_s = sess.run([accuracy, y_score], feed_dict={x: x_test, y: y_test, keep_prob: 1})
